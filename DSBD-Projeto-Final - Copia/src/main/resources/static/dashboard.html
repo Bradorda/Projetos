@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Vendas</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div style="width: 75%; margin: auto;">
+        <h1>Dashboard de Vendas</h1>
+
+       
+        <button id="logoutBtn">Logout</button>
+
+        
+        <h3>Vendas por Quantidade</h3>
+        <canvas id="salesChart"></canvas>
+
+   
+        <h3>Vendas por Valor</h3>
+        <canvas id="valueChart"></canvas>
+        
+       <h3>Vendas Agrupadas por Produto</h3>
+		<canvas id="productChart"></canvas>
+    </div>
+    
+   <script>
+	   //faz logout
+document.getElementById('logoutBtn').addEventListener('click', async function() {
+    const response = await fetch('/login/logout', {
+        method: 'POST', 
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
+
+    if (response.ok) {
+        window.location.href = '/login.html';
+    } else {
+        alert('Falha ao efetuar logout.');
+    }
+});
+
+
+// Verificar sessão ativa e carregar gráficos
+window.onload = async function() {
+    await checkSession(); 
+    await createCharts(); 
+};
+
+// Função para verificar sessão ativa
+async function checkSession() {
+    const response = await fetch('/login/check-session');
+    if (!response.ok) {
+        // Redirecionar para login se não houver sessão ativa
+        window.location.href = '/login.html';
+    }
+}
+
+// Função para buscar dados do backend
+async function fetchSalesData() {
+    const response = await fetch('/dashboard');
+    const vendas = await response.json();
+    return vendas;
+}
+
+// Função para agrupar vendas por produto
+function groupByProduct(vendas) {
+    const productSales = {};
+
+    vendas.forEach(venda => {
+        const product = venda.produto;
+        if (!productSales[product]) {
+            productSales[product] = {
+                quantidade: 0,
+                valor: 0
+            };
+        }
+        productSales[product].quantidade += venda.quantidade;
+        productSales[product].valor += venda.valor;
+    });
+
+    return productSales;
+}
+
+// Função para criar os gráficos
+async function createCharts() {
+    const vendas = await fetchSalesData();
+
+    const labels = vendas.map(v => v.data);
+    const quantities = vendas.map(v => v.quantidade);
+    const values = vendas.map(v => v.valor);
+
+    // Gráfico de Quantidade Vendida por Data
+    const ctx1 = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Quantidade Vendida',
+                data: quantities,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Gráfico de Valor Vendido por Data
+    const ctx2 = document.getElementById('valueChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Valor Vendido',
+                data: values,
+                backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                borderColor: 'rgba(153, 102, 255, 1)',
+                borderWidth: 1,
+                fill: true
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Agrupar vendas por produto
+    const groupedSales = groupByProduct(vendas);
+    const productLabels = Object.keys(groupedSales);
+    const productQuantities = Object.values(groupedSales).map(sale => sale.quantidade); 
+    const productValues = Object.values(groupedSales).map(sale => sale.valor); 
+
+    // Gráfico de Quantidade Vendida por Produto
+    const ctx3 = document.getElementById('productChart').getContext('2d');
+    new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: productLabels, 
+            datasets: [{
+                label: 'Quantidade Vendida por Produto',
+                data: productQuantities, 
+                backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Valor Vendido por Produto',
+                data: productValues, 
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+
+
+    </script>
+    
+</body>
+
+
+</html>
